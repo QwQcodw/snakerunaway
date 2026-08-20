@@ -2,28 +2,55 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蛇梯棋大螢幕計分板 (豪華互動動畫版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>蛇梯棋</title>
     <style>
+        :root {
+            /* 預設桌面版尺寸，手機版會透過 Media Query 動態縮減 */
+            --board-size: min(90vw, 550px);
+            --cell-size: calc((var(--board-size) - 18px) / 10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 30px;
+            flex-direction: column; /* 手機優先：垂直排列 */
+            align-items: center;
+            gap: 20px;
         }
 
-        /* 左側控制面板 */
+        /* 電腦螢幕寬度大於 900px 時改為左右並排 */
+        @media (min-width: 900px) {
+            body {
+                flex-direction: row;
+                justify-content: center;
+                align-items: flex-start;
+                padding: 25px;
+                gap: 30px;
+            }
+        }
+
+        /* 左側/上方控制面板 */
         #control-panel {
             background: white;
-            padding: 25px;
+            padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 320px;
+            width: 100%;
+            max-width: var(--board-size);
+        }
+
+        @media (min-width: 900px) {
+            #control-panel {
+                width: 320px;
+            }
         }
 
         h2, h3 {
@@ -32,7 +59,7 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         label {
@@ -47,7 +74,6 @@
             padding: 10px;
             border: 2px solid #ddd;
             border-radius: 6px;
-            box-sizing: border-box;
             font-size: 16px;
         }
 
@@ -68,38 +94,24 @@
             transition: background 0.2s;
         }
 
-        button:hover {
-            background-color: #45a049;
-        }
-
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
 
         .btn-restart {
             background-color: #007aff;
             margin-top: 15px;
         }
-        .btn-restart:hover {
-            background-color: #0062cc;
-        }
+        .btn-restart:hover { background-color: #0062cc; }
 
-        #name-setup-area {
+        #name-setup-area, #game-controls {
             display: none;
             border-top: 2px solid #eee;
             padding-top: 15px;
             margin-top: 15px;
         }
 
-        #game-controls {
-            display: none;
-            border-top: 2px solid #eee;
-            padding-top: 20px;
-        }
-
         .turn-indicator {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             text-align: center;
             padding: 10px;
@@ -109,29 +121,29 @@
             margin-bottom: 15px;
         }
 
-        /* 右側棋盤區 */
+        /* 右側/下方棋盤區 */
         #board-container {
             background: white;
-            padding: 15px;
+            padding: 10px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             position: relative;
+            width: fit-content;
         }
 
         #board {
             display: grid;
-            grid-template-columns: repeat(10, 65px);
-            grid-template-rows: repeat(10, 65px);
+            grid-template-columns: repeat(10, var(--cell-size));
+            grid-template-rows: repeat(10, var(--cell-size));
             gap: 2px;
             background-color: #ccc;
             border: 2px solid #333;
         }
 
-        /* 透明畫布 */
         #canvas {
             position: absolute;
-            top: 15px;
-            left: 15px;
+            top: 10px;
+            left: 10px;
             pointer-events: none;
             z-index: 10;
         }
@@ -140,42 +152,38 @@
             background-color: #fff;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
-            align-items: flex-start;
-            padding: 4px;
-            box-sizing: border-box;
+            justify-content: space-between;
+            padding: 2px;
             position: relative;
-            font-size: 12px;
+            font-size: clamp(9px, 2vw, 11px);
             font-weight: bold;
             color: #aaa;
+            overflow: hidden;
         }
 
         .cell.ladder-start { background-color: #fffde7; }
         .cell.snake-start { background-color: #fbe9e7; }
 
-        /* 棋子容器 */
         .pieces-container {
             position: absolute;
-            bottom: 4px;
-            left: 4px;
+            bottom: 2px;
+            left: 2px;
             display: flex;
             flex-wrap: wrap;
-            gap: 3px;
-            max-width: 58px;
+            gap: 2px;
+            max-width: 90%;
             z-index: 20; 
         }
 
-        /* 棋子樣式 */
         .piece {
-            width: 16px;
-            height: 16px;
+            width: clamp(8px, 2.5vw, 14px);
+            height: clamp(8px, 2.5vw, 14px);
             border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            border: 1.5px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
             display: inline-block;
         }
 
-        /* 玩家色彩 */
         .p-color-0 { background-color: #ff3b30; }
         .p-color-1 { background-color: #007aff; }
         .p-color-2 { background-color: #34c759; }
@@ -192,7 +200,7 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 8px;
-            padding: 5px;
+            padding: 6px;
             border-radius: 4px;
         }
         .player-item.active {
@@ -210,14 +218,14 @@
 <body>
 
     <div id="control-panel">
-        <h2>蛇梯棋</h2>
+        <h2>🐍 蛇梯棋 🪜</h2>
         
         <div id="setup-area" class="form-group">
-            <label for="player-count">請輸入玩家人數 (1-6 人):</label>
+            <label for="player-count">玩家人數 (1-6 人):</label>
             <input type="number" id="player-count" min="1" max="6" value="2" oninput="generateNameInputs()">
             
             <div id="name-setup-area">
-                <label>請輸入玩家暱稱：</label>
+                <label>玩家暱稱：</label>
                 <div id="name-inputs-list"></div>
                 <button onclick="startGame()" style="margin-top: 15px;">開始遊戲 🚀</button>
             </div>
@@ -228,7 +236,7 @@
             
             <div id="action-area">
                 <div class="form-group">
-                    <label for="steps-input">請輸入實體骰子點數 (1-6):</label>
+                    <label for="steps-input">實體骰子點數 (1-6):</label>
                     <input type="number" id="steps-input" min="1" max="6" placeholder="請輸入點數" onkeypress="handleKeyPress(event)">
                 </div>
                 <button id="submit-btn" onclick="moveCurrentPlayer()">確認移動</button>
@@ -245,14 +253,12 @@
 
     <div id="board-container">
         <div id="board"></div>
-        <canvas id="canvas" width="668" height="668"></canvas>
+        <canvas id="canvas"></canvas>
     </div>
 
     <script>
         const ladders = { 2: 38, 4: 14, 9: 31, 21: 42, 28: 84, 51: 67, 71: 91, 80: 100 };
         const snakes = { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 98: 79 };
-        
-        // 固定顏色色彩庫：紅、藍、綠、橘、紫、天藍
         const playerColors = ['#ff3b30', '#007aff', '#34c759', '#ff9500', '#af52de', '#5ac8fa'];
 
         let playerCount = 0;
@@ -264,6 +270,15 @@
         let animatingPlayerIndex = null;
         let animX = 0;
         let animY = 0;
+
+        function syncCanvasSize() {
+            const board = document.getElementById('board');
+            const canvas = document.getElementById('canvas');
+            if (board && canvas) {
+                canvas.width = board.offsetWidth;
+                canvas.height = board.offsetHeight;
+            }
+        }
 
         function createBoard() {
             const board = document.getElementById('board');
@@ -285,6 +300,7 @@
                     board.appendChild(cell);
                 }
             }
+            syncCanvasSize();
         }
 
         function generateNameInputs() {
@@ -294,7 +310,6 @@
             const nameSetupArea = document.getElementById('name-setup-area');
 
             container.innerHTML = '';
-
             if (isNaN(count) || count < 1 || count > 6) {
                 nameSetupArea.style.display = 'none';
                 return;
@@ -324,10 +339,11 @@
         }
 
         function getSnakePoint(pStart, pEnd, t) {
-            let cx1 = pStart.x + (pEnd.x - pStart.x) * 0.25 + 30;
-            let cy1 = pStart.y + (pEnd.y - pStart.y) * 0.25 - 20;
-            let cx2 = pStart.x + (pEnd.x - pStart.x) * 0.75 - 30;
-            let cy2 = pStart.y + (pEnd.y - pStart.y) * 0.75 + 20;
+            let offset = (pEnd.x - pStart.x) * 0.15;
+            let cx1 = pStart.x + (pEnd.x - pStart.x) * 0.25 + offset;
+            let cy1 = pStart.y + (pEnd.y - pStart.y) * 0.25 - 15;
+            let cx2 = pStart.x + (pEnd.x - pStart.x) * 0.75 - offset;
+            let cy2 = pStart.y + (pEnd.y - pStart.y) * 0.75 + 15;
             let mt = 1 - t;
             return {
                 x: mt*mt*mt*pStart.x + 3*mt*mt*t*cx1 + 3*mt*t*t*cx2 + t*t*t*pEnd.x,
@@ -336,24 +352,25 @@
         }
 
         function drawAll() {
+            syncCanvasSize();
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 畫梯子
+            // 繪製梯子
             for (let start in ladders) {
                 let end = ladders[start];
                 let pStart = getCellCenter(start);
                 let pEnd = getCellCenter(end);
                 ctx.save();
-                ctx.strokeStyle = '#ffa726'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+                ctx.strokeStyle = '#ffa726'; ctx.lineWidth = 4; ctx.lineCap = 'round';
                 let dx = pEnd.x - pStart.x, dy = pEnd.y - pStart.y;
                 let len = Math.sqrt(dx*dx + dy*dy);
-                let ox = (-dy / len) * 8, oy = (dx / len) * 8;
+                let ox = (-dy / len) * 6, oy = (dx / len) * 6;
                 ctx.beginPath(); ctx.moveTo(pStart.x + ox, pStart.y + oy); ctx.lineTo(pEnd.x + ox, pEnd.y + oy); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(pStart.x - ox, pStart.y - oy); ctx.lineTo(pEnd.x - ox, pEnd.y - oy); ctx.stroke();
-                ctx.strokeStyle = '#fb8c00'; ctx.lineWidth = 3;
-                let steps = Math.floor(len / 20);
+                ctx.strokeStyle = '#fb8c00'; ctx.lineWidth = 2;
+                let steps = Math.floor(len / 15);
                 for(let i = 1; i < steps; i++) {
                     let t = i / steps;
                     let cx = pStart.x + dx * t, cy = pStart.y + dy * t;
@@ -362,36 +379,33 @@
                 ctx.restore();
             }
 
-            // 畫蛇
+            // 繪製蛇
             for (let start in snakes) {
                 let end = snakes[start];
                 let pStart = getCellCenter(start);
                 let pEnd = getCellCenter(end);
+                let offset = (pEnd.x - pStart.x) * 0.15;
                 ctx.save();
-                ctx.strokeStyle = '#66bb6a'; ctx.lineWidth = 8; ctx.lineCap = 'round';
-                let cx1 = pStart.x + (pEnd.x - pStart.x) * 0.25 + 30;
-                let cy1 = pStart.y + (pEnd.y - pStart.y) * 0.25 - 20;
-                let cx2 = pStart.x + (pEnd.x - pStart.x) * 0.75 - 30;
-                let cy2 = pStart.y + (pEnd.y - pStart.y) * 0.75 + 20;
+                ctx.strokeStyle = '#66bb6a'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+                let cx1 = pStart.x + (pEnd.x - pStart.x) * 0.25 + offset;
+                let cy1 = pStart.y + (pEnd.y - pStart.y) * 0.25 - 15;
+                let cx2 = pStart.x + (pEnd.x - pStart.x) * 0.75 - offset;
+                let cy2 = pStart.y + (pEnd.y - pStart.y) * 0.75 + 15;
                 ctx.beginPath(); ctx.moveTo(pStart.x, pStart.y); ctx.bezierCurveTo(cx1, cy1, cx2, cy2, pEnd.x, pEnd.y); ctx.stroke();
-                ctx.fillStyle = '#ef5350'; ctx.beginPath(); ctx.arc(pStart.x, pStart.y, 7, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(pStart.x - 2, pStart.y - 2, 2, 0, Math.PI * 2); ctx.arc(pStart.x + 2, pStart.y - 2, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ef5350'; ctx.beginPath(); ctx.arc(pStart.x, pStart.y, 5, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
             }
 
-            // 【終極修復】畫動畫棋子：強制 100% 透明度與固定飽和色彩
+            // 動畫棋子
             if (animatingPlayerIndex !== null) {
                 ctx.save();
-                ctx.globalAlpha = 1.0; // 強制關閉任何可能繼承的透明效果
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 4;
-                
-                // 明確調用填滿顏色與描邊
+                ctx.globalAlpha = 1.0;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
                 ctx.fillStyle = playerColors[animatingPlayerIndex]; 
                 ctx.strokeStyle = '#ffffff'; 
-                ctx.lineWidth = 2.5; // 稍微加粗白框
-                
+                ctx.lineWidth = 2;
                 ctx.beginPath(); 
-                ctx.arc(animX, animY, 10, 0, Math.PI * 2); // 調整大小至 10 讓棋子走動時更醒目
+                ctx.arc(animX, animY, 8, 0, Math.PI * 2); 
                 ctx.fill(); 
                 ctx.stroke();
                 ctx.restore();
@@ -423,7 +437,7 @@
             updateBoardPieces();
             updateStatusList();
 
-            setTimeout(drawAll, 100);
+            setTimeout(drawAll, 50);
 
             document.getElementById('setup-area').style.display = 'none';
             document.getElementById('game-controls').style.display = 'block';
@@ -555,7 +569,7 @@
             return new Promise((resolve) => {
                 let pStart = getCellCenter(fromCell);
                 let pEnd = getCellCenter(toCell);
-                let duration = type === 'linear' ? 300 : 1200;
+                let duration = type === 'linear' ? 250 : 1000;
                 let startTime = null;
 
                 function step(timestamp) {
@@ -601,9 +615,9 @@
             drawAll();
         }
 
+        window.addEventListener('resize', drawAll);
         createBoard();
         generateNameInputs(); 
-        window.addEventListener('resize', drawAll);
     </script>
 </body>
 </html>
