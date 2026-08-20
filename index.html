@@ -1,181 +1,609 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <title>小恐龍遊戲</title>
-  <style>
-    body {
-      margin: 0;
-      background: #f4f4f4;
-      font-family: sans-serif;
-      overflow: hidden;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蛇梯棋大螢幕計分板 (豪華互動動畫版)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+        }
 
-    #game {
-      width: 100%;
-      height: 200px;
-      border-bottom: 2px solid #333;
-      background-color: #fff;
-      position: relative;
-    }
+        /* 左側控制面板 */
+        #control-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 320px;
+        }
 
-    #dino {
-      width: 40px;
-      height: 40px;
-      background: #555;
-      position: absolute;
-      bottom: 0;
-      left: 50px;
-    }
+        h2, h3 {
+            margin-top: 0;
+            color: #333;
+        }
 
-    .cactus {
-      width: 20px;
-      height: 40px;
-      background: green;
-      position: absolute;
-      bottom: 0;
-    }
+        .form-group {
+            margin-bottom: 20px;
+        }
 
-    #gameOver {
-      display: none;
-      position: absolute;
-      top: 30%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 24px;
-      color: red;
-      font-weight: bold;
-    }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
 
-    #restartBtn {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 10px 20px;
-      font-size: 16px;
-      background: #333;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
 
-    #restartBtn:hover {
-      background: #555;
-    }
-  </style>
+        input[type="text"] {
+            margin-bottom: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .btn-restart {
+            background-color: #007aff;
+            margin-top: 15px;
+        }
+        .btn-restart:hover {
+            background-color: #0062cc;
+        }
+
+        #name-setup-area {
+            display: none;
+            border-top: 2px solid #eee;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        #game-controls {
+            display: none;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+
+        .turn-indicator {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 6px;
+            color: #2e7d32;
+            margin-bottom: 15px;
+        }
+
+        /* 右側棋盤區 */
+        #board-container {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(10, 65px);
+            grid-template-rows: repeat(10, 65px);
+            gap: 2px;
+            background-color: #ccc;
+            border: 2px solid #333;
+        }
+
+        /* 透明畫布 */
+        #canvas {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .cell {
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
+            padding: 4px;
+            box-sizing: border-box;
+            position: relative;
+            font-size: 12px;
+            font-weight: bold;
+            color: #aaa;
+        }
+
+        .cell.ladder-start { background-color: #fffde7; }
+        .cell.snake-start { background-color: #fbe9e7; }
+
+        /* 棋子容器 */
+        .pieces-container {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            max-width: 58px;
+            z-index: 20; 
+        }
+
+        /* 棋子樣式 */
+        .piece {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            display: inline-block;
+        }
+
+        /* 玩家色彩 */
+        .p-color-0 { background-color: #ff3b30; }
+        .p-color-1 { background-color: #007aff; }
+        .p-color-2 { background-color: #34c759; }
+        .p-color-3 { background-color: #ff9500; }
+        .p-color-4 { background-color: #af52de; }
+        .p-color-5 { background-color: #5ac8fa; }
+
+        .player-status {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .player-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .player-item.active {
+            background-color: #fff9c4;
+            border: 1px solid #fbc02d;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+    </style>
 </head>
 <body>
-  <div id="game">
-    <div id="dino"></div>
-    <div id="gameOver">Game Over</div>
-    <button id="restartBtn">重新開始</button>
-  </div>
 
-  <script>
-    const dino = document.getElementById("dino");
-    const game = document.getElementById("game");
-    const gameOver = document.getElementById("gameOver");
-    const restartBtn = document.getElementById("restartBtn");
+    <div id="control-panel">
+        <h2>蛇梯棋</h2>
+        
+        <div id="setup-area" class="form-group">
+            <label for="player-count">請輸入玩家人數 (1-6 人):</label>
+            <input type="number" id="player-count" min="1" max="6" value="2" oninput="generateNameInputs()">
+            
+            <div id="name-setup-area">
+                <label>請輸入玩家暱稱：</label>
+                <div id="name-inputs-list"></div>
+                <button onclick="startGame()" style="margin-top: 15px;">開始遊戲 🚀</button>
+            </div>
+        </div>
 
-    let isJumping = false;
-    let isGameOver = false;
-    let cactusInterval;
-    let cacti = [];
+        <div id="game-controls">
+            <div class="turn-indicator" id="current-turn-text">等待開始...</div>
+            
+            <div id="action-area">
+                <div class="form-group">
+                    <label for="steps-input">請輸入實體骰子點數 (1-6):</label>
+                    <input type="number" id="steps-input" min="1" max="6" placeholder="請輸入點數" onkeypress="handleKeyPress(event)">
+                </div>
+                <button id="submit-btn" onclick="moveCurrentPlayer()">確認移動</button>
+            </div>
 
-    document.addEventListener("keydown", function (e) {
-      if (e.code === "Space" && !isJumping && !isGameOver) {
-        jump();
-      }
-    });
+            <button id="restart-btn" class="btn-restart" onclick="resetToSetup()" style="display: none;">再玩一局 🔄</button>
 
-    restartBtn.addEventListener("click", resetGame);
+            <div class="player-status">
+                <h3>目前位置：</h3>
+                <div id="player-list"></div>
+            </div>
+        </div>
+    </div>
 
-    function jump() {
-      isJumping = true;
-      let position = 0;
-      let goingUp = true;
+    <div id="board-container">
+        <div id="board"></div>
+        <canvas id="canvas" width="668" height="668"></canvas>
+    </div>
 
-      function animateJump() {
-        if (goingUp) {
-          position += 5;
-          if (position >= 100) goingUp = false;
-        } else {
-          position -= 5;
-          if (position <= 0) {
-            position = 0;
-            isJumping = false;
-            return;
-          }
+    <script>
+        const ladders = { 2: 38, 4: 14, 9: 31, 21: 42, 28: 84, 51: 67, 71: 91, 80: 100 };
+        const snakes = { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 98: 79 };
+        
+        // 固定顏色色彩庫：紅、藍、綠、橘、紫、天藍
+        const playerColors = ['#ff3b30', '#007aff', '#34c759', '#ff9500', '#af52de', '#5ac8fa'];
+
+        let playerCount = 0;
+        let players = [];      
+        let playerNames = [];  
+        let currentTurn = 0;
+        let isGameOver = false;
+
+        let animatingPlayerIndex = null;
+        let animX = 0;
+        let animY = 0;
+
+        function createBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for (let row = 9; row >= 0; row--) {
+                for (let col = 0; col < 10; col++) {
+                    let cellNum = (row % 2 === 1) ? (row * 10) + (10 - col) : (row * 10) + (col + 1);
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${cellNum}`;
+                    cell.innerHTML = `<div>${cellNum}</div>`;
+                    if (ladders[cellNum]) cell.classList.add('ladder-start');
+                    if (snakes[cellNum]) cell.classList.add('snake-start');
+
+                    const piecesContainer = document.createElement('div');
+                    piecesContainer.className = 'pieces-container';
+                    piecesContainer.id = `pieces-box-${cellNum}`;
+                    cell.appendChild(piecesContainer);
+                    board.appendChild(cell);
+                }
+            }
         }
-        dino.style.bottom = position + "px";
-        requestAnimationFrame(animateJump);
-      }
 
-      requestAnimationFrame(animateJump);
-    }
+        function generateNameInputs() {
+            const countInput = document.getElementById('player-count');
+            const count = parseInt(countInput.value);
+            const container = document.getElementById('name-inputs-list');
+            const nameSetupArea = document.getElementById('name-setup-area');
 
-    function createCactus() {
-      if (isGameOver) return;
+            container.innerHTML = '';
 
-      const cactus = document.createElement("div");
-      cactus.classList.add("cactus");
-      let cactusLeft = window.innerWidth;
-      cactus.style.left = cactusLeft + "px";
-      game.appendChild(cactus);
-      cacti.push(cactus);
+            if (isNaN(count) || count < 1 || count > 6) {
+                nameSetupArea.style.display = 'none';
+                return;
+            }
 
-      function moveCactus() {
-        if (isGameOver) return;
-
-        cactusLeft -= 5;
-        cactus.style.left = cactusLeft + "px";
-
-        if (
-          cactusLeft < 90 &&
-          cactusLeft > 50 &&
-          parseInt(dino.style.bottom) < 40
-        ) {
-          gameOver.style.display = "block";
-          restartBtn.style.display = "block";
-          isGameOver = true;
-          clearInterval(cactusInterval);
-          return;
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `p-name-${i}`;
+                input.placeholder = `玩家 ${i + 1} 的名字`;
+                input.maxLength = 10; 
+                container.appendChild(input);
+            }
+            nameSetupArea.style.display = 'block';
         }
 
-        if (cactusLeft <= -20) {
-          cactus.remove();
-          cacti = cacti.filter(c => c !== cactus);
-        } else {
-          requestAnimationFrame(moveCactus);
+        function getCellCenter(cellNum) {
+            const cell = document.getElementById(`cell-${cellNum}`);
+            const board = document.getElementById('board');
+            if(!cell || !board) return {x:0, y:0};
+            const cellRect = cell.getBoundingClientRect();
+            const boardRect = board.getBoundingClientRect();
+            return {
+                x: cellRect.left - boardRect.left + (cellRect.width / 2),
+                y: cellRect.top - boardRect.top + (cellRect.height / 2)
+            };
         }
-      }
 
-      requestAnimationFrame(moveCactus);
-    }
+        function getSnakePoint(pStart, pEnd, t) {
+            let cx1 = pStart.x + (pEnd.x - pStart.x) * 0.25 + 30;
+            let cy1 = pStart.y + (pEnd.y - pStart.y) * 0.25 - 20;
+            let cx2 = pStart.x + (pEnd.x - pStart.x) * 0.75 - 30;
+            let cy2 = pStart.y + (pEnd.y - pStart.y) * 0.75 + 20;
+            let mt = 1 - t;
+            return {
+                x: mt*mt*mt*pStart.x + 3*mt*mt*t*cx1 + 3*mt*t*t*cx2 + t*t*t*pEnd.x,
+                y: mt*mt*mt*pStart.y + 3*mt*mt*t*cy1 + 3*mt*t*t*cy2 + t*t*t*pEnd.y
+            };
+        }
 
-    function startGame() {
-      cactusInterval = setInterval(createCactus, 1500);
-    }
+        function drawAll() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    function resetGame() {
-      // 清除舊 cactus
-      cacti.forEach(c => c.remove());
-      cacti = [];
+            // 畫梯子
+            for (let start in ladders) {
+                let end = ladders[start];
+                let pStart = getCellCenter(start);
+                let pEnd = getCellCenter(end);
+                ctx.save();
+                ctx.strokeStyle = '#ffa726'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+                let dx = pEnd.x - pStart.x, dy = pEnd.y - pStart.y;
+                let len = Math.sqrt(dx*dx + dy*dy);
+                let ox = (-dy / len) * 8, oy = (dx / len) * 8;
+                ctx.beginPath(); ctx.moveTo(pStart.x + ox, pStart.y + oy); ctx.lineTo(pEnd.x + ox, pEnd.y + oy); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(pStart.x - ox, pStart.y - oy); ctx.lineTo(pEnd.x - ox, pEnd.y - oy); ctx.stroke();
+                ctx.strokeStyle = '#fb8c00'; ctx.lineWidth = 3;
+                let steps = Math.floor(len / 20);
+                for(let i = 1; i < steps; i++) {
+                    let t = i / steps;
+                    let cx = pStart.x + dx * t, cy = pStart.y + dy * t;
+                    ctx.beginPath(); ctx.moveTo(cx + ox, cy + oy); ctx.lineTo(cx - ox, cy - oy); ctx.stroke();
+                }
+                ctx.restore();
+            }
 
-      // 重置狀態
-      isGameOver = false;
-      isJumping = false;
-      dino.style.bottom = "0px";
-      gameOver.style.display = "none";
-      restartBtn.style.display = "none";
+            // 畫蛇
+            for (let start in snakes) {
+                let end = snakes[start];
+                let pStart = getCellCenter(start);
+                let pEnd = getCellCenter(end);
+                ctx.save();
+                ctx.strokeStyle = '#66bb6a'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+                let cx1 = pStart.x + (pEnd.x - pStart.x) * 0.25 + 30;
+                let cy1 = pStart.y + (pEnd.y - pStart.y) * 0.25 - 20;
+                let cx2 = pStart.x + (pEnd.x - pStart.x) * 0.75 - 30;
+                let cy2 = pStart.y + (pEnd.y - pStart.y) * 0.75 + 20;
+                ctx.beginPath(); ctx.moveTo(pStart.x, pStart.y); ctx.bezierCurveTo(cx1, cy1, cx2, cy2, pEnd.x, pEnd.y); ctx.stroke();
+                ctx.fillStyle = '#ef5350'; ctx.beginPath(); ctx.arc(pStart.x, pStart.y, 7, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(pStart.x - 2, pStart.y - 2, 2, 0, Math.PI * 2); ctx.arc(pStart.x + 2, pStart.y - 2, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
 
-      startGame();
-    }
+            // 【終極修復】畫動畫棋子：強制 100% 透明度與固定飽和色彩
+            if (animatingPlayerIndex !== null) {
+                ctx.save();
+                ctx.globalAlpha = 1.0; // 強制關閉任何可能繼承的透明效果
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 4;
+                
+                // 明確調用填滿顏色與描邊
+                ctx.fillStyle = playerColors[animatingPlayerIndex]; 
+                ctx.strokeStyle = '#ffffff'; 
+                ctx.lineWidth = 2.5; // 稍微加粗白框
+                
+                ctx.beginPath(); 
+                ctx.arc(animX, animY, 10, 0, Math.PI * 2); // 調整大小至 10 讓棋子走動時更醒目
+                ctx.fill(); 
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
 
-    window.onload = startGame;
-  </script>
+        function startGame() {
+            const countInput = document.getElementById('player-count');
+            playerCount = parseInt(countInput.value);
+
+            if (playerCount < 1 || playerCount > 6 || isNaN(playerCount)) {
+                alert('請輸入 1 到 6 之間的玩家人數！');
+                return;
+            }
+
+            playerNames = [];
+            for (let i = 0; i < playerCount; i++) {
+                const nameIn = document.getElementById(`p-name-${i}`);
+                let name = nameIn ? nameIn.value.trim() : '';
+                if (name === '') name = `玩家 ${i + 1}`;
+                playerNames.push(name);
+            }
+
+            players = Array(playerCount).fill(1);
+            currentTurn = 0;
+            isGameOver = false;
+
+            createBoard();
+            updateBoardPieces();
+            updateStatusList();
+
+            setTimeout(drawAll, 100);
+
+            document.getElementById('setup-area').style.display = 'none';
+            document.getElementById('game-controls').style.display = 'block';
+            document.getElementById('action-area').style.display = 'block';
+            document.getElementById('restart-btn').style.display = 'none';
+            updateTurnText();
+            document.getElementById('steps-input').focus();
+        }
+
+        function updateBoardPieces() {
+            for (let i = 1; i <= 100; i++) {
+                const box = document.getElementById(`pieces-box-${i}`);
+                if (box) box.innerHTML = '';
+            }
+            players.forEach((pos, index) => {
+                if (index === animatingPlayerIndex) return; 
+                const box = document.getElementById(`pieces-box-${pos}`);
+                if (box) {
+                    const piece = document.createElement('div');
+                    piece.className = `piece p-color-${index}`;
+                    box.appendChild(piece);
+                }
+            });
+        }
+
+        function updateTurnText() {
+            if (isGameOver) return;
+            const textEl = document.getElementById('current-turn-text');
+            textEl.innerHTML = `輪到：${playerNames[currentTurn]}`;
+            textEl.style.borderLeft = `8px solid ${playerColors[currentTurn]}`;
+        }
+
+        function updateStatusList() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            for (let i = 0; i < playerCount; i++) {
+                const item = document.createElement('div');
+                item.className = `player-item ${i === currentTurn && !isGameOver ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span class="dot" style="background-color: ${playerColors[i]}"></span>
+                    <strong>${playerNames[i]}</strong>: 第 ${players[i]} 格
+                `;
+                list.appendChild(item);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') moveCurrentPlayer();
+        }
+
+        async function moveCurrentPlayer() {
+            if (isGameOver || animatingPlayerIndex !== null) return;
+
+            const input = document.getElementById('steps-input');
+            const steps = parseInt(input.value);
+
+            if (isNaN(steps) || steps < 1 || steps > 6) {
+                alert('請輸入 1 到 6 的實體骰子點數！');
+                return;
+            }
+
+            document.getElementById('submit-btn').disabled = true;
+            input.disabled = true;
+
+            let startPos = players[currentTurn];
+            let path = [];
+            let tempPos = startPos;
+            for (let i = 1; i <= steps; i++) {
+                tempPos++;
+                if (tempPos > 100) {
+                    let over = tempPos - 100;
+                    path.push(100 - over);
+                } else {
+                    path.push(tempPos);
+                }
+            }
+
+            animatingPlayerIndex = currentTurn;
+            let lastPos = startPos;
+            
+            for (let targetPos of path) {
+                await animateBetweenCells(lastPos, targetPos, 'linear');
+                players[currentTurn] = targetPos;
+                updateStatusList();
+                lastPos = targetPos;
+            }
+
+            let finalPos = lastPos;
+            if (ladders[finalPos]) {
+                let teleportPos = ladders[finalPos];
+                await animateBetweenCells(finalPos, teleportPos, 'ladder');
+                players[currentTurn] = teleportPos;
+                finalPos = teleportPos;
+            } else if (snakes[finalPos]) {
+                let teleportPos = snakes[finalPos];
+                await animateBetweenCells(finalPos, teleportPos, 'snake');
+                players[currentTurn] = teleportPos;
+                finalPos = teleportPos;
+            }
+
+            animatingPlayerIndex = null;
+            updateBoardPieces();
+            drawAll();
+
+            if (finalPos === 100) {
+                isGameOver = true;
+                document.getElementById('current-turn-text').innerHTML = `🎉 恭喜 ${playerNames[currentTurn]} 獲勝！`;
+                document.getElementById('current-turn-text').style.background = '#fff9c4';
+                
+                document.getElementById('action-area').style.display = 'none';
+                document.getElementById('restart-btn').style.display = 'block';
+                
+                alert(`👑 遊戲結束！${playerNames[currentTurn]} 率先到達終點贏得勝利！`);
+                updateStatusList();
+                return;
+            }
+
+            currentTurn = (currentTurn + 1) % playerCount;
+            input.value = '';
+            document.getElementById('submit-btn').disabled = false;
+            input.disabled = false;
+            input.focus();
+
+            updateTurnText();
+            updateStatusList();
+        }
+
+        function animateBetweenCells(fromCell, toCell, type) {
+            return new Promise((resolve) => {
+                let pStart = getCellCenter(fromCell);
+                let pEnd = getCellCenter(toCell);
+                let duration = type === 'linear' ? 300 : 1200;
+                let startTime = null;
+
+                function step(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    let progress = timestamp - startTime;
+                    let t = Math.min(progress / duration, 1);
+
+                    if (type === 'linear' || type === 'ladder') {
+                        animX = pStart.x + (pEnd.x - pStart.x) * t;
+                        animY = pStart.y + (pEnd.y - pStart.y) * t;
+                    } else if (type === 'snake') {
+                        let pt = getSnakePoint(pStart, pEnd, t);
+                        animX = pt.x; animY = pt.y;
+                    }
+
+                    updateBoardPieces();
+                    drawAll();
+
+                    if (t < 1) { requestAnimationFrame(step); } else { resolve(); }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+
+        function resetToSetup() {
+            playerCount = 0;
+            players = [];
+            playerNames = [];
+            currentTurn = 0;
+            isGameOver = false;
+            animatingPlayerIndex = null;
+
+            document.getElementById('steps-input').value = '';
+            document.getElementById('steps-input').disabled = false;
+            document.getElementById('submit-btn').disabled = false;
+            document.getElementById('current-turn-text').style.background = '#e8f5e9';
+
+            document.getElementById('game-controls').style.display = 'none';
+            document.getElementById('setup-area').style.display = 'block';
+            
+            generateNameInputs();
+            createBoard();
+            drawAll();
+        }
+
+        createBoard();
+        generateNameInputs(); 
+        window.addEventListener('resize', drawAll);
+    </script>
 </body>
 </html>
